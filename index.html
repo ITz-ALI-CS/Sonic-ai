@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RAG Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#111827;
+  --surface:#1a2235;
+  --surface2:#1f2a40;
+  --surface3:#273048;
+  --border:#2e3a55;
+  --accent:#60a5fa;
+  --accent2:#a78bfa;
+  --green:#34d399;
+  --red:#f87171;
+  --text:#e2e8f0;
+  --text2:#94a3b8;
+  --text3:#4b5a72;
+}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  padding:20px;
+  background-image:
+    radial-gradient(ellipse at 15% 15%, rgba(96,165,250,0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 85%, rgba(167,139,250,0.05) 0%, transparent 50%);
+}
+.header{
+  width:660px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 0 18px 0;
+  border-bottom:1px solid var(--border);
+  margin-bottom:18px;
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{
+  width:38px;height:38px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+  box-shadow:0 4px 15px rgba(96,165,250,0.25);
+}
+.logo-text{font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.logo-text span{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.header-right{display:flex;align-items:center;gap:10px;}
+.doc-counter{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--text2);
+  background:var(--surface2);
+  border:1px solid var(--border);
+  padding:6px 14px;
+  border-radius:20px;
+}
+.doc-counter b{color:var(--accent);}
+.welcome{
+  width:660px;
+  font-size:13px;
+  color:var(--text2);
+  margin-bottom:12px;
+  padding:0 4px;
+}
+.welcome b{color:var(--accent);}
+.doc-tags{
+  width:660px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:12px;
+  min-height:0;
+}
+.doc-tag{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  color:var(--accent);
+  background:rgba(96,165,250,0.08);
+  border:1px solid rgba(96,165,250,0.2);
+  padding:4px 12px;
+  border-radius:20px;
+}
+.doc-preview{
+  width:660px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:10px;
+  display:none;
+}
+.doc-preview-title{
+  font-size:11px;
+  color:var(--text3);
+  font-family:'JetBrains Mono',monospace;
+  margin-bottom:6px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+.doc-preview-text{
+  font-size:13px;
+  color:var(--text2);
+  line-height:1.7;
+  font-style:italic;
+}
+.upload-zone{
+  width:660px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px 18px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.upload-zone:hover{border-color:var(--accent);box-shadow:0 0 0 3px rgba(96,165,250,0.06);}
+.choose-btn{
+  padding:8px 16px;
+  background:var(--surface3);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:8px;
+  font-size:13px;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  font-weight:500;
+  white-space:nowrap;
+  transition:all 0.2s;
+}
+.choose-btn:hover{border-color:var(--accent);color:var(--accent);}
+.file-name{
+  color:var(--text2);
+  font-size:12px;
+  font-family:'JetBrains Mono',monospace;
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.upload-btn{
+  padding:8px 18px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  font-size:13px;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  font-weight:600;
+  white-space:nowrap;
+  transition:opacity 0.2s;
+  box-shadow:0 4px 12px rgba(96,165,250,0.2);
+}
+.upload-btn:hover{opacity:0.85;}
+.clear-docs-btn{
+  padding:8px 14px;
+  background:transparent;
+  color:var(--red);
+  border:1px solid rgba(248,113,113,0.35);
+  border-radius:8px;
+  font-size:13px;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  font-weight:500;
+  white-space:nowrap;
+  transition:all 0.2s;
+}
+.clear-docs-btn:hover{background:rgba(248,113,113,0.1);}
+.status-bar{
+  width:660px;
+  height:20px;
+  font-size:12px;
+  font-family:'JetBrains Mono',monospace;
+  color:var(--green);
+  margin-bottom:10px;
+  padding:0 4px;
+}
+.chat-box{
+  width:660px;
+  height:360px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin-bottom:10px;
+  scroll-behavior:smooth;
+}
+.chat-box::-webkit-scrollbar{width:4px;}
+.chat-box::-webkit-scrollbar-track{background:transparent;}
+.chat-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.message{display:flex;gap:10px;max-width:88%;}
+.message.user{align-self:flex-end;flex-direction:row-reverse;}
+.avatar{
+  width:30px;height:30px;
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  flex-shrink:0;
+  margin-top:2px;
+}
+.bot .avatar{background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 2px 8px rgba(96,165,250,0.25);}
+.user .avatar{background:var(--surface3);border:1px solid var(--border);}
+.bubble{
+  padding:11px 15px 11px 15px;
+  border-radius:12px;
+  font-size:14px;
+  line-height:1.65;
+  position:relative;
+  padding-right:60px;
+}
+ 
+.bot .bubble{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-top-left-radius:3px;
+  color:var(--text);
+}
+.user .bubble{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;
+  font-weight:500;
+  border-top-right-radius:3px;
+  box-shadow:0 4px 12px rgba(96,165,250,0.2);
+}
+.copy-btn{
+  position:absolute;
+  top:8px;right:8px;
+  background:var(--surface3);
+  border:1px solid var(--border);
+  color:var(--text2);
+  border-radius:6px;
+  padding:3px 8px;
+  font-size:11px;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 0.2s;
+  font-family:'Inter',sans-serif;
+}
+.bot .bubble:hover .copy-btn{opacity:1;}
+.copy-btn:hover{color:var(--accent);border-color:var(--accent);}
+.copy-btn.copied{color:var(--green);border-color:var(--green);}
+.error-bubble{
+  background:rgba(248,113,113,0.07);
+  border:1px solid rgba(248,113,113,0.25);
+  color:var(--red);
+  padding:11px 15px;
+  border-radius:12px;
+  font-size:13px;
+  align-self:flex-start;
+}
+.thinking{display:flex;gap:5px;padding:3px 0;align-items:center;}
+.thinking span{
+  width:7px;height:7px;
+  background:var(--accent);
+  border-radius:50%;
+  opacity:0.7;
+  animation:bounce 1.2s infinite;
+}
+.thinking span:nth-child(2){animation-delay:0.2s;}
+.thinking span:nth-child(3){animation-delay:0.4s;}
+@keyframes bounce{
+  0%,60%,100%{transform:translateY(0);opacity:0.7;}
+  30%{transform:translateY(-7px);opacity:1;}
+}
+.input-area{
+  width:660px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:10px 10px 10px 18px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.input-area:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(96,165,250,0.06);}
+#question{
+  flex:1;
+  background:transparent;
+  border:none;
+  color:var(--text);
+  font-size:14px;
+  font-family:'Inter',sans-serif;
+  outline:none;
+}
+#question::placeholder{color:var(--text3);}
+.char-counter{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  color:var(--text3);
+  white-space:nowrap;
+}
+.char-counter.warn{color:var(--red);}
+.send-btn{
+  padding:9px 20px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;
+  border:none;
+  border-radius:10px;
+  font-size:14px;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  font-weight:600;
+  transition:opacity 0.2s;
+  box-shadow:0 4px 12px rgba(96,165,250,0.2);
+}
+.send-btn:hover{opacity:0.85;}
+.clear-btn{
+  padding:9px 14px;
+  background:transparent;
+  color:var(--text2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:13px;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.clear-btn:hover{border-color:var(--text2);color:var(--text);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🤖</div>
+    <div class="logo-text">RAG <span>Agent</span></div>
+  </div>
+  <div class="header-right">
+    <div class="doc-counter"><b id="doc-count">0</b> / 5 docs</div>
+  </div>
+</div>
+
+<div class="welcome" id="welcome"></div>
+<div class="doc-tags" id="doc-tags"></div>
+
+<div class="doc-preview" id="doc-preview">
+  <div class="doc-preview-title">📄 Document Preview</div>
+  <div class="doc-preview-text" id="doc-preview-text"></div>
+</div>
+
+<div class="upload-zone">
+  <input type="file" id="file-input" accept=".pdf,.txt" style="display:none" />
+  <button class="choose-btn" onclick="document.getElementById('file-input').click()">📂 Choose File</button>
+  <span class="file-name" id="file-name">No file chosen</span>
+  <button class="upload-btn" onclick="uploadFile()">↑ Upload</button>
+  <button class="clear-docs-btn" onclick="clearDocs()">🗑 Clear All</button>
+</div>
+
+<div class="status-bar" id="upload-status"></div>
+
+<div class="chat-box" id="chat-box">
+  <div class="message bot">
+    <div class="avatar">🤖</div>
+    <div class="bubble">Upload up to 5 documents — PDF or TXT — then ask me anything from them.</div>
+  </div>
+</div>
+
+<div class="input-area">
+  <input type="text" id="question" placeholder="Ask anything from your documents..." maxlength="500" />
+  <span class="char-counter" id="char-counter">0/500</span>
+  <button class="clear-btn" onclick="clearChat()">Clear</button>
+  <button class="send-btn" onclick="askQuestion()">Send →</button>
+</div>
+
+<script>
+  const docNames = [];
+
+  function setWelcome() {
+    const hour = new Date().getHours();
+    let greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    document.getElementById("welcome").innerHTML = `${greeting} 👋 — What would you like to explore today?`;
+  }
+  setWelcome();
+
+  document.getElementById("question").addEventListener("input", function() {
+    const len = this.value.length;
+    const counter = document.getElementById("char-counter");
+    counter.textContent = len + "/500";
+    counter.className = "char-counter" + (len > 450 ? " warn" : "");
+  });
+
+  document.getElementById("file-input").addEventListener("change", function() {
+    const file = this.files[0];
+    document.getElementById("file-name").textContent = file ? file.name : "No file chosen";
+    if (file && file.name.endsWith(".txt")) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+        const summary = sentences.slice(0, 3).join(" ").trim();
+        document.getElementById("doc-preview-text").textContent = summary || text.substring(0, 300);
+        document.getElementById("doc-preview").style.display = "block";
+      };
+      reader.readAsText(file);
+    } else {
+      document.getElementById("doc-preview").style.display = "none";
+    }
+  });
+
+  function updateDocTags() {
+    document.getElementById("doc-tags").innerHTML = docNames.map(n => `<div class="doc-tag">📄 ${n}</div>`).join('');
+    document.getElementById("doc-count").textContent = docNames.length;
+  }
+
+  function addBotMessage(html) {
+    const chatBox = document.getElementById("chat-box");
+    const id = "msg" + Date.now();
+    chatBox.innerHTML += `
+      <div class="message bot">
+        <div class="avatar">🤖</div>
+        <div class="bubble" id="${id}">
+          ${html}
+          <button class="copy-btn" onclick="copyMsg('${id}')">Copy</button>
+        </div>
+      </div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function copyMsg(id) {
+    const text = document.getElementById(id).innerText.replace("Copy","").replace("Copied!","").trim();
+    navigator.clipboard.writeText(text);
+    const btn = document.getElementById(id).querySelector(".copy-btn");
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+  }
+
+  async function uploadFile() {
+    const fileInput = document.getElementById("file-input");
+    const status = document.getElementById("upload-status");
+    const file = fileInput.files[0];
+    if (!file) { status.style.color="var(--red)"; status.textContent="⚠ Select a file first."; return; }
+    status.style.color="var(--text2)"; status.textContent="Uploading...";
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch("http://127.0.0.1:8000/upload", { method:"POST", body:formData, signal:controller.signal });
+      clearTimeout(timeout);
+      const data = await response.json();
+      if (data.error) { status.style.color="var(--red)"; status.textContent="✗ "+data.error; }
+      else {
+        status.style.color="var(--green)"; status.textContent="✓ "+data.message;
+        if (!docNames.includes(file.name)) docNames.push(file.name);
+        updateDocTags();
+        addBotMessage("✅ <b>"+file.name+"</b> loaded. Ask me anything from it.");
+      }
+    } catch(error) {
+      status.style.color="var(--red)";
+      status.textContent = error.name==="AbortError" ? "⏱ Timed out." : "✗ Backend offline. Run: uvicorn main:app --reload";
+    }
+  }
+
+  async function clearDocs() {
+    const status = document.getElementById("upload-status");
+    try {
+      const response = await fetch("http://127.0.0.1:8000/clear", { method:"POST" });
+      const data = await response.json();
+      status.style.color="var(--red)"; status.textContent="✓ "+data.message;
+      docNames.length = 0; updateDocTags();
+      document.getElementById("doc-preview").style.display = "none";
+      document.getElementById("chat-box").innerHTML=`<div class="message bot"><div class="avatar">🤖</div><div class="bubble">All documents cleared. Upload new ones to get started.</div></div>`;
+    } catch(e) { status.style.color="var(--red)"; status.textContent="✗ Backend offline."; }
+  }
+
+  async function askQuestion() {
+    const input = document.getElementById("question");
+    const chatBox = document.getElementById("chat-box");
+    const question = input.value.trim();
+    if (!question) return;
+    chatBox.innerHTML += `<div class="message user"><div class="avatar">👤</div><div class="bubble">${question}</div></div>`;
+    input.value = "";
+    document.getElementById("char-counter").textContent = "0/500";
+    const loadingId = "l"+Date.now();
+    chatBox.innerHTML += `<div class="message bot" id="${loadingId}"><div class="avatar">🤖</div><div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div></div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch("http://127.0.0.1:8000/ask", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({question}), signal:controller.signal });
+      clearTimeout(timeout);
+      const data = await response.json();
+      document.getElementById(loadingId).remove();
+      addBotMessage(data.answer);
+    } catch(error) {
+      document.getElementById(loadingId).remove();
+      const msg = error.name==="AbortError" ? "⏱ Timed out. Try again." : "✗ Backend offline.";
+      chatBox.innerHTML += `<div class="error-bubble">${msg}</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  }
+
+  function clearChat() {
+    document.getElementById("chat-box").innerHTML=`<div class="message bot"><div class="avatar">🤖</div><div class="bubble">Chat cleared. Ask me anything from your documents.</div></div>`;
+  }
+
+  document.getElementById("question").addEventListener("keypress", e => { if(e.key==="Enter") askQuestion(); });
+</script>
+</body>
+</html>
