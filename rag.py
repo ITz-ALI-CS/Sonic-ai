@@ -15,7 +15,7 @@ db = FAISS.load_local("vectorstore", embeddings, allow_dangerous_deserialization
 # Step 2: Load Groq LLM
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
-    model_name="llama-3.3-70b-versatile"
+    model_name="qwen/qwen3.6-27b"
 )
 
 # Step 3: Ask question

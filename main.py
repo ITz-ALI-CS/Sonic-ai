@@ -62,13 +62,13 @@ class ChatHistoryDB(Base):
     messages      = Column(Text, default="[]")
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow)
-    
+
 class FailedLoginDB(Base):
     __tablename__ = "failed_logins"
     id        = Column(Integer, primary_key=True, index=True)
     email     = Column(String, index=True)
     ip        = Column(String, default="")
-    timestamp = Column(DateTime, default=datetime.utcnow)    
+    timestamp = Column(DateTime, default=datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)
 
@@ -80,8 +80,17 @@ app.add_middleware(
 )
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-llm        = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model_name="llama-3.3-70b-versatile")
-db_vector  = None
+
+# NOTE: qwen/qwen3.6-27b is a "reasoning" model — it thinks before answering.
+# reasoning_format="hidden" tells Groq to strip that thinking out of the response
+# for us, server-side, so we don't get <think> blocks leaking into answers.
+llm = ChatGroq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    model_name="qwen/qwen3.6-27b",
+    reasoning_format="hidden",
+)
+
+db_vector = None
 
 def load_db():
     global db_vector
@@ -241,6 +250,11 @@ GREET_R = [
 
 def is_unsafe(t: str) -> bool:
     return any(w in t.lower() for w in UNSAFE)
+
+def strip_think(text: str) -> str:
+    """Removes any leftover <think>...</think> reasoning block, just in case
+    reasoning_format=hidden doesn't apply (e.g. model changes later)."""
+    return re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL).strip()
 
 @app.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -470,11 +484,17 @@ async def upload_file(file: UploadFile = File(...)):
 def improve_prompt(req: ImprovePromptRequest):
     try:
         resp = llm.invoke(
-            "You are an expert prompt engineer. Rewrite this prompt to be clearer and more specific.\n"
-            "RULES: Keep exact topic. Output ONLY improved prompt — no quotes, no explanation.\n\n"
+            "You are an expert prompt engineer. Rewrite the user's prompt to be clearer "
+            "and more specific, WITHOUT making it much longer than the original.\n"
+            "RULES:\n"
+            "- Keep the exact same topic and intent.\n"
+            "- Keep it close to the original length — do NOT expand into multiple sections, "
+            "headings, or a big structured brief unless the original already asked for that.\n"
+            "- Output ONLY the improved prompt text — no quotes, no explanation, no preamble.\n\n"
             f"Original: {req.prompt}\n\nImproved:"
         )
-        improved = resp.content.strip().strip('"').strip("'").strip("`")
+        improved = strip_think(resp.content)
+        improved = improved.strip('"').strip("'").strip("`")
         for pfx in ["Improved:", "Improved prompt:", "Here is", "Here's", "Result:"]:
             if improved.lower().startswith(pfx.lower()):
                 improved = improved[len(pfx):].strip()
@@ -512,12 +532,13 @@ def _doc_ctx(question: str) -> str:
 
 def _suggestions(question: str) -> list:
     try:
-        sr    = llm.invoke(
+        sr   = llm.invoke(
             f"Generate 3 short follow-up questions (max 8 words each).\n"
             f"Output ONLY valid JSON array: [\"Q1?\",\"Q2?\",\"Q3?\"]\n"
             f"Topic: {question}"
         )
-        text  = re.sub(r"^```.*?\n|```$", "", sr.content.strip(), flags=re.MULTILINE).strip()
+        text  = strip_think(sr.content)
+        text  = re.sub(r"^```.*?\n|```$", "", text, flags=re.MULTILINE).strip()
         match = re.search(r'\[.*?\]', text, re.DOTALL)
         if match:
             parsed = json.loads(match.group())
@@ -583,7 +604,7 @@ def ask(req: QuestionRequest, request: Request):
           else "EFFORT MODE: Thorough, accurate, well-structured.")
 
     prompt = _build_prompt(fi, mi, hist, doc, rctx, req.question, date)
-    answer = llm.invoke(prompt).content.strip()
+    answer = strip_think(llm.invoke(prompt).content)
     return {"answer": answer, "suggestions": _suggestions(req.question), "format_used": fmt}
 
 @app.post("/web-ask")
@@ -655,7 +676,7 @@ async def web_ask(req: QuestionRequest, request: Request):
         f"\nQuestion: {req.question}\nAnswer:"
     )
 
-    answer = llm.invoke(prompt).content.strip()
+    answer = strip_think(llm.invoke(prompt).content)
     final_sources = sources[:3] if req.mode == "effort" else []
     return {"answer": answer, "sources": final_sources, "suggestions": _suggestions(req.question)}
 
@@ -671,7 +692,7 @@ def summarize():
         "• 2-sentence overview\n• Main topics (max 7 bullets)\n• 2-3 key takeaways\n\n"
         f"Content:\n{ctx}"
     )
-    return {"answer": resp.content.strip()}
+    return {"answer": strip_think(resp.content)}
 
 @app.post("/clear")
 def clear_docs():
